@@ -853,7 +853,7 @@ p {
   }
 
   .final-signature {
-    bottom: max(58px, calc(env(safe-area-inset-bottom) + 42px));
+    bottom: max(78px, calc(env(safe-area-inset-bottom) + 58px));
     gap: 0.5em;
     font-size: 0.66rem;
     letter-spacing: 0.25em;
@@ -861,7 +861,7 @@ p {
 
   .site-footer {
     right: 22px;
-    bottom: max(16px, env(safe-area-inset-bottom));
+    bottom: max(28px, calc(env(safe-area-inset-bottom) + 12px));
     left: 22px;
     flex-direction: column;
     gap: 5px;
@@ -1103,6 +1103,16 @@ p {
 @media (max-width: 340px) and (orientation: portrait) {
   .final-section {
     min-height: 160svh;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 700px) and (orientation: landscape) {
+  .final-signature {
+    bottom: clamp(120px, 30svh, 180px);
+  }
+
+  .site-footer {
+    bottom: max(48px, calc(env(safe-area-inset-bottom) + 32px));
   }
 }
 

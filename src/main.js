@@ -653,7 +653,7 @@ function updateFinalDimensions() {
       ? 0
       : finalLayout.frustumWidth * (isCompactLandscape ? 0.29 : isCompact ? 0.2 : isCompactDesktop ? 0.23 : 0.2),
     isMobile
-      ? -finalLayout.frustumHeight * (isCompactLandscape ? (isShortLandscape ? 0.15 : -0.04) : isUltraNarrowPortrait ? 0.11 : 0.02)
+      ? -finalLayout.frustumHeight * (isCompactLandscape ? (isShortLandscape ? 0.15 : 0.02) : isUltraNarrowPortrait ? 0.11 : 0.02)
       : isCompactLandscape
         ? -finalLayout.frustumHeight * 0.08
         : isCompact
