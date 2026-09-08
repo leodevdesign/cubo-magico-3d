@@ -37,7 +37,7 @@ body,
 #app,
 #smooth-wrapper,
 #smooth-content {
-  min-width: 320px;
+  min-width: 0;
   min-height: 100%;
   margin: 0;
 }
@@ -869,6 +869,58 @@ p {
   }
 }
 
+@media (max-width: 900px) and (orientation: landscape) {
+  .assembly-content {
+    padding-top: 32px;
+    padding-bottom: 24px;
+  }
+
+  .assembly-heading {
+    margin-top: 14px;
+    margin-bottom: 16px;
+    font-size: clamp(2.35rem, 6.7vw, 3.6rem);
+  }
+
+  .assembly-copy {
+    max-width: 420px;
+    font-size: 0.92rem;
+  }
+
+  .final-section {
+    min-height: 210svh;
+  }
+
+  .final-content {
+    padding-top: 42px;
+  }
+
+  .final-heading {
+    font-size: clamp(1.85rem, 6vw, 3rem);
+  }
+
+  .final-copy {
+    max-width: 420px;
+    margin-top: 16px;
+    margin-bottom: 18px;
+    font-size: 0.9rem;
+  }
+
+  .final-buy-button {
+    margin-bottom: 22px;
+  }
+
+  .final-features {
+    max-width: 520px;
+    gap: 18px;
+  }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .final-section {
+    min-height: 132svh;
+  }
+}
+
 @media (max-width: 480px) {
   .intro {
     padding: 42px 22px 4px;
@@ -995,6 +1047,63 @@ p {
     line-height: 1.48;
   }
 
+}
+
+@media (max-width: 480px) and (orientation: portrait) {
+  .final-section {
+    min-height: 132svh;
+  }
+}
+
+@media (max-width: 480px) and (orientation: landscape) {
+  .assembly-content {
+    padding-top: 32px;
+    padding-bottom: 24px;
+  }
+
+  .assembly-heading {
+    margin-top: 14px;
+    margin-bottom: 16px;
+    font-size: clamp(2.15rem, 6.7vw, 3.2rem);
+  }
+
+  .assembly-copy {
+    max-width: 420px;
+    font-size: 0.9rem;
+  }
+
+  .final-section {
+    min-height: 210svh;
+  }
+
+  .final-content {
+    padding-top: 42px;
+  }
+
+  .final-heading {
+    font-size: clamp(1.85rem, 6vw, 2.7rem);
+  }
+
+  .final-copy {
+    max-width: 420px;
+    margin-top: 16px;
+    margin-bottom: 18px;
+    font-size: 0.9rem;
+  }
+
+  .final-buy-button {
+    margin-bottom: 22px;
+  }
+
+  .final-features {
+    gap: 18px;
+  }
+}
+
+@media (max-width: 340px) and (orientation: portrait) {
+  .final-section {
+    min-height: 160svh;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

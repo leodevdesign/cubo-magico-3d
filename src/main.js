@@ -421,8 +421,8 @@ const assemblyLayout = {
 };
 const assemblyScrollProgress = { value: 0 };
 
-function updateAssemblyCubes(progress, isMobile) {
-  const explosionDistance = isMobile ? 2.05 : 2.45;
+function updateAssemblyCubes(progress, isCompact) {
+  const explosionDistance = isCompact ? 2.05 : 2.45;
   const maxRadius = Math.sqrt(3) * 1.015;
 
   assemblyCubies.forEach((cubie) => {
@@ -459,17 +459,26 @@ function updateAssemblyDimensions() {
   assemblyLayout.frustumWidth = assemblyLayout.frustumHeight * assemblyCamera.aspect;
 
   const isMobile = width <= 700;
+  const isCompact = width <= 900;
+  const isNarrowMobile = isMobile && width <= 340;
+  const isShortLandscape = isMobile && window.innerWidth > window.innerHeight && window.innerHeight <= 420;
   assemblyLayout.baseScale = isMobile
     ? Math.max(0.68, Math.min(assemblyLayout.frustumWidth * 0.18, 0.95))
+    : isCompact
+      ? Math.max(0.82, Math.min(assemblyLayout.frustumWidth * 0.12, 1.05))
     : Math.max(1.05, Math.min(assemblyLayout.frustumWidth * 0.067, 1.35));
 
   assemblyCube.scale.setScalar(assemblyLayout.baseScale);
   assemblyCube.position.set(
-    isMobile ? 0 : assemblyLayout.frustumWidth * 0.19,
-    isMobile ? -assemblyLayout.frustumHeight * 0.18 : 0,
+    isMobile ? 0 : assemblyLayout.frustumWidth * (isCompact ? 0.27 : 0.19),
+    isMobile
+      ? -assemblyLayout.frustumHeight * (isShortLandscape ? 0.65 : isNarrowMobile ? 0.4 : 0.18)
+      : isCompact
+        ? -assemblyLayout.frustumHeight * 0.08
+        : 0,
     0,
   );
-  updateAssemblyCubes(assemblyScrollProgress.value, isMobile);
+  updateAssemblyCubes(assemblyScrollProgress.value, isCompact);
 }
 
 let isAssemblyVisible = false;
@@ -492,12 +501,13 @@ function setupAssemblyMotion() {
     {
       isDesktop: '(min-width: 701px)',
       isMobile: '(max-width: 700px)',
+      isCompact: '(max-width: 900px)',
       reduceMotion: '(prefers-reduced-motion: reduce)',
     },
     (context) => {
-      const { isMobile, reduceMotion } = context.conditions;
+      const { isCompact, reduceMotion } = context.conditions;
       if (reduceMotion) {
-        updateAssemblyCubes(1, isMobile);
+        updateAssemblyCubes(1, isCompact);
         return undefined;
       }
 
@@ -517,7 +527,7 @@ function setupAssemblyMotion() {
             anticipatePin: 1,
             onUpdate: (self) => {
               assemblyScrollProgress.value = self.progress;
-              updateAssemblyCubes(self.progress, isMobile);
+              updateAssemblyCubes(self.progress, isCompact);
             },
           },
         },
@@ -580,12 +590,12 @@ function easeFinalAssembly(value) {
     : 1 - ((-2 * value + 2) ** 3) / 2;
 }
 
-function updateFinalCubes(time, isMobile) {
+function updateFinalCubes(time, isCompact) {
   const cycle = finalReducedMotion.matches
     ? 0.5
     : (time * 0.00012 + 0.5) % 1;
   const assemblyProgress = 1 - Math.abs(cycle * 2 - 1);
-  const explosionDistance = isMobile ? 1.3 : finalMaxExplosion;
+  const explosionDistance = isCompact ? 1.3 : finalMaxExplosion;
   const maxRadius = Math.sqrt(3) * 1.015;
 
   finalCubies.forEach((cubie) => {
@@ -622,20 +632,36 @@ function updateFinalDimensions() {
   finalLayout.frustumWidth = finalLayout.frustumHeight * finalCamera.aspect;
 
   const isMobile = width <= 700;
-  const isCompactDesktop = !isMobile && width <= 1140;
-  finalLayout.baseScale = isMobile
-    ? Math.max(0.75, Math.min(finalLayout.frustumWidth * 0.17, 1.02))
-    : isCompactDesktop
-      ? Math.max(0.92, Math.min(finalLayout.frustumWidth * 0.085, 0.98))
-      : Math.max(1.15, Math.min(finalLayout.frustumWidth * 0.08, 1.55));
+  const isCompact = width <= 900;
+  const isCompactLandscape = isCompact && window.innerWidth > window.innerHeight;
+  const isShortLandscape = isCompactLandscape && window.innerHeight <= 420;
+  const isUltraNarrowPortrait = isMobile && !isCompactLandscape && window.innerWidth <= 310;
+  const isCompactDesktop = !isCompact && width <= 1140;
+  finalLayout.baseScale = isCompactLandscape
+    ? Math.max(0.62, Math.min(finalLayout.frustumWidth * 0.11, 0.84))
+    : isMobile
+      ? Math.max(isUltraNarrowPortrait ? 0.68 : 0.75, Math.min(finalLayout.frustumWidth * 0.17, 1.02))
+      : isCompact
+        ? Math.max(0.82, Math.min(finalLayout.frustumWidth * 0.12, 1.0))
+        : isCompactDesktop
+          ? Math.max(0.92, Math.min(finalLayout.frustumWidth * 0.085, 0.98))
+          : Math.max(1.15, Math.min(finalLayout.frustumWidth * 0.08, 1.55));
 
   finalCube.scale.setScalar(finalLayout.baseScale);
   finalCube.position.set(
-    isMobile ? 0 : finalLayout.frustumWidth * (isCompactDesktop ? 0.23 : 0.2),
-    isMobile ? -finalLayout.frustumHeight * 0.13 : 0.02,
+    isMobile
+      ? 0
+      : finalLayout.frustumWidth * (isCompactLandscape ? 0.29 : isCompact ? 0.2 : isCompactDesktop ? 0.23 : 0.2),
+    isMobile
+      ? -finalLayout.frustumHeight * (isCompactLandscape ? (isShortLandscape ? 0.15 : -0.04) : isUltraNarrowPortrait ? 0.11 : 0.02)
+      : isCompactLandscape
+        ? -finalLayout.frustumHeight * 0.08
+        : isCompact
+          ? -finalLayout.frustumHeight * 0.05
+          : 0.02,
     0,
   );
-  updateFinalCubes(performance.now(), isMobile);
+  updateFinalCubes(performance.now(), isCompact);
 }
 
 let isFinalVisible = false;
@@ -1263,6 +1289,18 @@ updateInterface();
 setupStoryMotion();
 setupAssemblyMotion();
 
+let responsiveResizeFrame = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(responsiveResizeFrame);
+  responsiveResizeFrame = requestAnimationFrame(() => {
+    resize();
+    updateStoryDimensions();
+    updateAssemblyDimensions();
+    updateFinalDimensions();
+    ScrollTrigger.refresh();
+  });
+});
+
 let previousTime = performance.now();
 function animate(now) {
   const delta = now - previousTime;
@@ -1295,7 +1333,7 @@ function animate(now) {
 
   if (isFinalVisible) {
     const finalWidth = finalCanvas.getBoundingClientRect().width;
-    updateFinalCubes(now, finalWidth <= 700);
+    updateFinalCubes(now, finalWidth <= 900);
     finalRenderer.render(finalScene, finalCamera);
   }
 
