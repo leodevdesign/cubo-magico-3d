@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Um cubo mágico 3D interativo para explorar, girar e resolver."
+    />
+    <meta name="theme-color" content="#08090b" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nextautomatik.com/" />
+    <meta property="og:title" content="Cubo mágico 3D — Next Automatik" />
+    <meta
+      property="og:description"
+      content="Precisão tátil, giro suave e controle total. Explore o cubo em 3D."
+    />
+    <meta property="og:image" content="https://nextautomatik.com/assets/cubo-magico-share.png" />
+    <meta property="og:image:width" content="1536" />
+    <meta property="og:image:height" content="1024" />
+    <meta property="og:image:alt" content="Cubo mágico 3D nas cores vermelho, azul e branco." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cubo mágico 3D — Next Automatik" />
+    <meta
+      name="twitter:description"
+      content="Precisão tátil, giro suave e controle total. Explore o cubo em 3D."
+    />
+    <meta name="twitter:image" content="https://nextautomatik.com/assets/cubo-magico-share.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <title>Cubo mágico 3D — Next Automatik</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div id="smooth-wrapper">
+      <div id="smooth-content">
+        <main class="page-shell">
+      <section class="intro" aria-labelledby="page-title">
+        <h1 id="page-title">Cubo mágico 3D</h1>
+        <p>
+          Arraste uma peça na direção em que quer movê-la. Use Explorar cubo para
+          girar livremente e ver todas as faces.
+        </p>
+
+        <div class="game-controls" aria-label="Controles do cubo mágico">
+          <div class="stats-summary">
+            <div class="move-summary">
+              <span>Movimentos</span>
+              <strong id="move-count">0</strong>
+            </div>
+            <div class="time-summary">
+              <span>Tempo</span>
+              <strong id="timer">00:00</strong>
+            </div>
+          </div>
+          <div class="move-history" aria-label="Registro dos últimos movimentos">
+            <span>Registro</span>
+            <div id="move-history-list" role="log" aria-live="polite"></div>
+          </div>
+          <div class="action-buttons">
+            <button class="control-button" id="undo-button" type="button" disabled>Desfazer</button>
+            <button class="control-button" id="shuffle-button" type="button">Embaralhar</button>
+            <button class="control-button" id="solve-button" type="button" disabled>Concluir</button>
+            <button class="control-button" id="view-mode-button" type="button" aria-pressed="false">Explorar cubo</button>
+            <button class="control-button" id="center-view-button" type="button">Centralizar visão</button>
+          </div>
+          <p class="keyboard-help">
+            <span>R L U D F B: camadas externas · M E S: centros</span>
+            <span>Shift + tecla: sentido oposto</span>
+            <span>V: explorar · Z: desfaz · H: embaralha · C: conclui</span>
+          </p>
+          <p class="game-status" id="game-status" aria-live="polite">Pronto para embaralhar.</p>
+        </div>
+        <button class="buy-button" type="button">Comprar cubo</button>
+      </section>
+
+      <section class="cube-stage" aria-label="Cubo mágico tridimensional interativo">
+        <canvas id="cube-canvas" tabindex="0" aria-label="Cubo mágico 3D. No modo Mover peças, arraste uma peça para girar sua camada. No modo Explorar cubo, arraste livremente para ver todas as faces. Use R, L, U, D, F, B para as camadas externas e M, E, S para os centros. Segure Shift para inverter o sentido."></canvas>
+      </section>
+        </main>
+
+        <section class="story-section" id="historia" aria-labelledby="story-title">
+          <canvas id="story-canvas" class="story-canvas" aria-hidden="true"></canvas>
+
+          <div class="story-content">
+            <h2 class="story-heading" id="story-title">
+              <span class="story-line">Em 1974,</span>
+              <span class="story-line">um professor húngaro</span>
+              <span class="story-line">construiu um cubo</span>
+              <span class="story-line">para ensinar</span>
+              <span class="story-line">o espaço a se mover.</span>
+            </h2>
+            <div class="story-copy">
+              <p>O objeto não nasceu para ser vencido. Ernő Rubik queria tornar visíveis as relações entre forma, movimento e profundidade.</p>
+              <p>Quando as cores saíram do lugar, a lição virou enigma e o enigma passou a caber nas mãos de todo mundo.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="assembly-section" id="montagem" aria-labelledby="assembly-title">
+          <div class="assembly-stage">
+            <canvas id="assembly-canvas" class="assembly-canvas" aria-hidden="true"></canvas>
+
+            <div class="assembly-content">
+              <p class="assembly-kicker">03 / por dentro do movimento</p>
+              <h2 class="assembly-heading" id="assembly-title">
+                Peça por peça,<br />
+                o caos encontra<br />
+                seu eixo.
+              </h2>
+              <p class="assembly-copy">
+                Role para ver as partes se aproximarem, camada por camada, até o cubo voltar a encontrar sua forma.
+              </p>
+            </div>
+
+            <p class="assembly-scroll-hint">Role para montar <span aria-hidden="true">↓</span></p>
+          </div>
+        </section>
+
+        <section class="final-section" id="final" aria-labelledby="final-title">
+          <canvas id="final-canvas" class="final-canvas" aria-hidden="true"></canvas>
+
+          <div class="final-content">
+            <h2 class="final-heading" id="final-title">
+              <span>Feito para</span><br />
+              <span class="final-heading-nowrap">mentes inquietas.</span>
+            </h2>
+            <p class="final-copy">
+              <span>Precisão tátil, giro suave e controle total.</span>
+              <span>Do primeiro movimento à solução final.</span>
+            </p>
+            <button class="buy-button final-buy-button" type="button">Comprar cubo</button>
+
+            <div class="final-features" aria-label="Características do cubo">
+              <div class="final-feature">
+                <span class="final-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M12 3 20 7.5v9L12 21l-8-4.5v-9L12 3Z" />
+                    <path d="m4.5 7.5 7.5 4.25 7.5-4.25M12 12v9" />
+                  </svg>
+                </span>
+                <span>Giro suave<br />e preciso</span>
+              </div>
+              <div class="final-feature">
+                <span class="final-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M12 3 19 6v5c0 4.6-2.8 8-7 10-4.2-2-7-5.4-7-10V6l7-3Z" />
+                    <path d="m8.5 12 2.2 2.2 4.8-5" />
+                  </svg>
+                </span>
+                <span>Peças<br />resistentes</span>
+              </div>
+              <div class="final-feature">
+                <span class="final-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <circle cx="12" cy="12" r="3.2" />
+                    <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" />
+                  </svg>
+                </span>
+                <span>Cores vivas<br />e duradouras</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="final-signature" aria-label="Gire, explore, resolva.">
+            <span>GIRE.</span>
+            <span class="is-accent">EXPLORE.</span>
+            <span>RESOLVA.</span>
+          </p>
+
+          <footer class="site-footer" aria-label="Rodapé">
+            <span>© <span id="current-year">2026</span> Cubo mágico 3D. Todos os direitos reservados.</span>
+            <span>Feito por <a href="https://nextautomatik.com/" target="_blank" rel="noopener noreferrer">Next Automatik</a></span>
+          </footer>
+        </section>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
