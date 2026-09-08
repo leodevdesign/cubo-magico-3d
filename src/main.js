@@ -12,6 +12,7 @@ const assemblyCanvas = document.querySelector('#assembly-canvas');
 const assemblyStage = document.querySelector('.assembly-stage');
 const finalSection = document.querySelector('.final-section');
 const finalCanvas = document.querySelector('#final-canvas');
+const finalCubeStage = document.querySelector('.final-cube-stage');
 const storyLines = gsap.utils.toArray('.story-line');
 const storyCopy = document.querySelector('.story-copy');
 const undoButton = document.querySelector('#undo-button');
@@ -106,6 +107,223 @@ function buildRubiksCube(parentGroup, castShadows = true) {
 
   return list;
 }
+
+// --- Preloader: cubo completo embaralhado voltando à solução ---
+const preloaderElement = document.querySelector('#preloader');
+const preloaderCanvas = document.querySelector('#preloader-canvas');
+const preloaderProgress = document.querySelector('.preloader-progress');
+const preloaderProgressBar = document.querySelector('#preloader-progress-bar');
+const preloaderPercent = document.querySelector('#preloader-percent');
+const preloaderStatus = document.querySelector('#preloader-status');
+const preloaderProgressState = { value: 0 };
+const PRELOADER_GRID_STEP = 1.015;
+const PRELOADER_QUARTER_TURN = Math.PI / 2;
+const PRELOADER_SCRAMBLE = [
+  { axis: 'y', layer: 1, direction: 1 },
+  { axis: 'x', layer: -1, direction: -1 },
+  { axis: 'z', layer: 1, direction: -1 },
+  { axis: 'y', layer: -1, direction: -1 },
+  { axis: 'x', layer: 1, direction: 1 },
+];
+
+let preloaderRenderer;
+let preloaderScene;
+let preloaderCamera;
+let preloaderCube;
+let preloaderCubies = [];
+let isPreloaderVisible = Boolean(preloaderElement && preloaderCanvas);
+
+function updatePreloaderProgress() {
+  const value = Math.round(preloaderProgressState.value);
+  if (preloaderProgressBar) {
+    preloaderProgressBar.style.transform = `scaleX(${value / 100})`;
+  }
+  if (preloaderPercent) preloaderPercent.textContent = `${value}%`;
+  if (preloaderProgress) preloaderProgress.setAttribute('aria-valuenow', String(value));
+  if (preloaderStatus && value >= 96) preloaderStatus.textContent = 'Experiência pronta';
+}
+
+function resizePreloader() {
+  if (!preloaderRenderer || !preloaderCanvas) return;
+  const { width, height } = preloaderCanvas.getBoundingClientRect();
+  if (!width || !height) return;
+
+  preloaderRenderer.setSize(width, height, false);
+  preloaderCamera.aspect = width / height;
+  preloaderCamera.updateProjectionMatrix();
+
+  const vFOV = THREE.MathUtils.degToRad(preloaderCamera.fov);
+  const frustumHeight = 2 * Math.tan(vFOV / 2) * preloaderCamera.position.z;
+  const scale = Math.max(0.88, Math.min(1.18, frustumHeight * 0.2));
+  preloaderCube.scale.setScalar(scale);
+}
+
+function finishPreloader() {
+  if (!isPreloaderVisible) return;
+  isPreloaderVisible = false;
+  document.body.classList.remove('is-loading');
+  document.body.setAttribute('aria-busy', 'false');
+  if (preloaderElement) {
+    preloaderElement.hidden = true;
+    preloaderElement.setAttribute('aria-hidden', 'true');
+  }
+  if (preloaderRenderer) {
+    preloaderRenderer.dispose();
+    preloaderRenderer = undefined;
+  }
+  ScrollTrigger.refresh();
+}
+
+function getPreloaderLayer(move) {
+  return preloaderCubies.filter(
+    (cubie) => Math.round(cubie.position[move.axis] / PRELOADER_GRID_STEP) === move.layer,
+  );
+}
+
+function snapPreloaderCubie(cubie) {
+  cubie.position.set(
+    Math.round(cubie.position.x / PRELOADER_GRID_STEP) * PRELOADER_GRID_STEP,
+    Math.round(cubie.position.y / PRELOADER_GRID_STEP) * PRELOADER_GRID_STEP,
+    Math.round(cubie.position.z / PRELOADER_GRID_STEP) * PRELOADER_GRID_STEP,
+  );
+  cubie.rotation.set(
+    Math.round(cubie.rotation.x / PRELOADER_QUARTER_TURN) * PRELOADER_QUARTER_TURN,
+    Math.round(cubie.rotation.y / PRELOADER_QUARTER_TURN) * PRELOADER_QUARTER_TURN,
+    Math.round(cubie.rotation.z / PRELOADER_QUARTER_TURN) * PRELOADER_QUARTER_TURN,
+  );
+  cubie.quaternion.normalize();
+}
+
+function applyPreloaderMove(move) {
+  const pivot = new THREE.Group();
+  const selected = getPreloaderLayer(move);
+  preloaderCube.add(pivot);
+  selected.forEach((cubie) => pivot.attach(cubie));
+  pivot.rotation[move.axis] = move.direction * PRELOADER_QUARTER_TURN;
+  pivot.updateMatrixWorld(true);
+  selected.forEach((cubie) => {
+    preloaderCube.attach(cubie);
+    snapPreloaderCubie(cubie);
+  });
+  preloaderCube.remove(pivot);
+}
+
+function addPreloaderMove(timeline, move, index, turnStart, turnDuration, turnGap) {
+  const pivot = new THREE.Group();
+  const turnProgress = { value: 0 };
+  let selected = [];
+  const start = turnStart + index * (turnDuration + turnGap);
+
+  timeline.fromTo(
+    turnProgress,
+    { value: 0 },
+    {
+      value: 1,
+      duration: turnDuration,
+      ease: 'power2.inOut',
+      onStart: () => {
+        preloaderCube.add(pivot);
+        pivot.rotation.set(0, 0, 0);
+        selected = getPreloaderLayer(move);
+        selected.forEach((cubie) => pivot.attach(cubie));
+      },
+      onUpdate: () => {
+        pivot.rotation[move.axis] = move.direction * PRELOADER_QUARTER_TURN * turnProgress.value;
+      },
+      onComplete: () => {
+        pivot.rotation[move.axis] = move.direction * PRELOADER_QUARTER_TURN;
+        pivot.updateMatrixWorld(true);
+        selected.forEach((cubie) => {
+          preloaderCube.attach(cubie);
+          snapPreloaderCubie(cubie);
+        });
+        preloaderCube.remove(pivot);
+      },
+    },
+    start,
+  );
+}
+
+function setupPreloader() {
+  if (!preloaderElement || !preloaderCanvas) return;
+
+  preloaderScene = new THREE.Scene();
+  preloaderCamera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+  preloaderCamera.position.set(0, 0, 11);
+
+  preloaderRenderer = new THREE.WebGLRenderer({
+    canvas: preloaderCanvas,
+    antialias: true,
+    alpha: true,
+    powerPreference: 'high-performance',
+  });
+  preloaderRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  preloaderRenderer.setClearColor(0x000000, 0);
+  preloaderRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  preloaderRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  preloaderRenderer.toneMappingExposure = 1.08;
+
+  preloaderScene.add(new THREE.HemisphereLight(0xffffff, 0x111827, 2.7));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 3.7);
+  keyLight.position.set(5, 8, 10);
+  preloaderScene.add(keyLight);
+  const rimLight = new THREE.DirectionalLight(0x83b3ff, 1.8);
+  rimLight.position.set(-6, 4, -5);
+  preloaderScene.add(rimLight);
+
+  preloaderCube = new THREE.Group();
+  preloaderCube.rotation.set(0.26, -0.58, 0.06, 'XYZ');
+  preloaderCubies = buildRubiksCube(preloaderCube, false);
+  preloaderScene.add(preloaderCube);
+  PRELOADER_SCRAMBLE.forEach(applyPreloaderMove);
+
+  resizePreloader();
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const duration = reduceMotion ? 0.2 : 2;
+  const turnStart = reduceMotion ? 0 : 0.1;
+  const turnDuration = reduceMotion ? 0.035 : 0.28;
+  const turnGap = reduceMotion ? 0.005 : 0.03;
+  const progressTimeline = gsap.timeline();
+
+  updatePreloaderProgress();
+  progressTimeline.to(
+    preloaderProgressState,
+    {
+      value: 100,
+      duration,
+      ease: 'power2.inOut',
+      onUpdate: updatePreloaderProgress,
+    },
+    0,
+  );
+
+  PRELOADER_SCRAMBLE
+    .slice()
+    .reverse()
+    .map((move) => ({ ...move, direction: -move.direction }))
+    .forEach((move, index) => {
+      addPreloaderMove(progressTimeline, move, index, turnStart, turnDuration, turnGap);
+    });
+
+  progressTimeline.to(
+    preloaderCube.rotation,
+    { y: 0.18, z: 0, duration, ease: 'none' },
+    0,
+  );
+  progressTimeline.to(
+    preloaderElement,
+    {
+      autoAlpha: 0,
+      duration: reduceMotion ? 0.12 : 0.3,
+      ease: 'power2.in',
+      onComplete: finishPreloader,
+    },
+    reduceMotion ? 0.08 : 1.72,
+  );
+}
+
+setupPreloader();
 
 // --- Cena 1: Cubo Mágico Interativo (Hero) ---
 const scene = new THREE.Scene();
@@ -618,6 +836,48 @@ function updateFinalCubes(time, isCompact) {
   finalCube.rotation.z = 0.08 + Math.sin(time * 0.00019) * 0.025;
 }
 
+const finalBounds = new THREE.Box3();
+const finalBoundsCorner = new THREE.Vector3();
+
+function measureFinalCubeAtMidpoint(canvasHeight, isCompact) {
+  const explosionDistance = isCompact ? 1.3 : finalMaxExplosion;
+  const midpointDistance = THREE.MathUtils.lerp(1, explosionDistance, 0.5);
+
+  finalCubies.forEach((cubie) => {
+    cubie.position.copy(cubie.userData.homePosition).multiplyScalar(midpointDistance);
+  });
+
+  finalCube.updateMatrixWorld(true);
+  finalCamera.updateMatrixWorld(true);
+  finalBounds.setFromObject(finalCube);
+
+  let top = Number.POSITIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+
+  for (let xIndex = 0; xIndex < 2; xIndex += 1) {
+    for (let yIndex = 0; yIndex < 2; yIndex += 1) {
+      for (let zIndex = 0; zIndex < 2; zIndex += 1) {
+        finalBoundsCorner
+          .set(
+            xIndex ? finalBounds.max.x : finalBounds.min.x,
+            yIndex ? finalBounds.max.y : finalBounds.min.y,
+            zIndex ? finalBounds.max.z : finalBounds.min.z,
+          )
+          .project(finalCamera);
+
+        const pixelY = (1 - finalBoundsCorner.y) * 0.5 * canvasHeight;
+        top = Math.min(top, pixelY);
+        bottom = Math.max(bottom, pixelY);
+      }
+    }
+  }
+
+  return {
+    center: (top + bottom) * 0.5,
+    height: bottom - top,
+  };
+}
+
 function updateFinalDimensions() {
   if (!finalCanvas) return;
   const { width, height } = finalCanvas.getBoundingClientRect();
@@ -636,7 +896,9 @@ function updateFinalDimensions() {
   const isCompactLandscape = isCompact && window.innerWidth > window.innerHeight;
   const isShortLandscape = isCompactLandscape && window.innerHeight <= 420;
   const isUltraNarrowPortrait = isMobile && !isCompactLandscape && window.innerWidth <= 310;
+  const isTinyPortrait = isMobile && !isCompactLandscape && window.innerWidth <= 340;
   const isCompactDesktop = !isCompact && width <= 1140;
+  const isStacked = isCompact && Boolean(finalCubeStage);
   finalLayout.baseScale = isCompactLandscape
     ? Math.max(0.62, Math.min(finalLayout.frustumWidth * 0.11, 0.84))
     : isMobile
@@ -647,21 +909,43 @@ function updateFinalDimensions() {
           ? Math.max(0.92, Math.min(finalLayout.frustumWidth * 0.085, 0.98))
           : Math.max(1.15, Math.min(finalLayout.frustumWidth * 0.08, 1.55));
 
+  const now = performance.now();
   finalCube.scale.setScalar(finalLayout.baseScale);
-  finalCube.position.set(
-    isMobile
-      ? 0
-      : finalLayout.frustumWidth * (isCompactLandscape ? 0.29 : isCompact ? 0.2 : isCompactDesktop ? 0.23 : 0.2),
-    isMobile
-      ? -finalLayout.frustumHeight * (isCompactLandscape ? (isShortLandscape ? 0.15 : 0.02) : isUltraNarrowPortrait ? 0.11 : 0.02)
-      : isCompactLandscape
+  finalCube.position.set(0, 0, 0);
+  updateFinalCubes(now, isCompact);
+
+  if (isStacked) {
+    const midpointBounds = measureFinalCubeAtMidpoint(height, isCompact);
+    const measuredHeight = Number.isFinite(midpointBounds.height)
+      ? midpointBounds.height
+      : width;
+    const stageHeight = Math.ceil(
+      THREE.MathUtils.clamp(measuredHeight, 240, Math.min(width * 1.35, 700)),
+    );
+
+    if (Math.abs(finalCubeStage.getBoundingClientRect().height - stageHeight) > 1) {
+      finalCubeStage.style.height = `${stageHeight}px`;
+    }
+
+    const canvasRect = finalCanvas.getBoundingClientRect();
+    const stageRect = finalCubeStage.getBoundingClientRect();
+    const targetCenter = stageRect.top - canvasRect.top + stageRect.height * 0.5;
+
+    finalCube.position.y =
+      ((midpointBounds.center - targetCenter) / height) * finalLayout.frustumHeight;
+  } else {
+    finalCube.position.set(
+      finalLayout.frustumWidth * (isCompactLandscape ? 0.29 : isCompact ? 0.2 : isCompactDesktop ? 0.23 : 0.2),
+      isCompactLandscape
         ? -finalLayout.frustumHeight * 0.08
         : isCompact
           ? -finalLayout.frustumHeight * 0.05
           : 0.02,
-    0,
-  );
-  updateFinalCubes(performance.now(), isCompact);
+      0,
+    );
+  }
+
+  updateFinalCubes(now, isCompact);
 }
 
 let isFinalVisible = false;
@@ -1271,6 +1555,9 @@ function resize() {
 const resizeObserver = new ResizeObserver(resize);
 resizeObserver.observe(canvas);
 
+const preloaderResizeObserver = new ResizeObserver(resizePreloader);
+if (preloaderCanvas) preloaderResizeObserver.observe(preloaderCanvas);
+
 const storyResizeObserver = new ResizeObserver(updateStoryDimensions);
 if (storyCanvas) storyResizeObserver.observe(storyCanvas);
 
@@ -1319,6 +1606,10 @@ function animate(now) {
   updateTimer(now);
   updateCamera();
   renderer.render(scene, camera);
+
+  if (isPreloaderVisible && preloaderRenderer) {
+    preloaderRenderer.render(preloaderScene, preloaderCamera);
+  }
 
   if (isStoryVisible) {
     const idle = Math.sin(now * 0.0012) * 0.05;
